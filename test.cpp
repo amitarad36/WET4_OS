@@ -1,12 +1,17 @@
 #include <iostream>
-extern void* smalloc(size_t size);
+#include <cstring>
+extern void* scalloc(size_t num, size_t size);
 
 int main() {
-    void* p1 = smalloc(50);
-    void* p2 = smalloc(100);
+    int* arr = (int*)scalloc(5, sizeof(int));
 
-    if (p1 && p2) std::cout << "smalloc: Success\n";
-    else std::cout << "smalloc: Failed\n";
+    bool is_zero = true;
+    for (int i = 0; i < 5; i++) {
+        if (arr[i] != 0) is_zero = false;
+    }
+
+    if (arr && is_zero) std::cout << "scalloc: Success\n";
+    else std::cout << "scalloc: Failed\n";
 
     return 0;
 }
