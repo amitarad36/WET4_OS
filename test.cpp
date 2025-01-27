@@ -1,17 +1,14 @@
 #include <iostream>
-#include <cstring>
-extern void* scalloc(size_t num, size_t size);
+extern void* smalloc(size_t size);
+extern void sfree(void* p);
 
 int main() {
-    int* arr = (int*)scalloc(5, sizeof(int));
+    void* p1 = smalloc(50);
+    sfree(p1);
+    void* p2 = smalloc(50); // Should reuse p1’s memory
 
-    bool is_zero = true;
-    for (int i = 0; i < 5; i++) {
-        if (arr[i] != 0) is_zero = false;
-    }
-
-    if (arr && is_zero) std::cout << "scalloc: Success\n";
-    else std::cout << "scalloc: Failed\n";
+    if (p1 == p2) std::cout << "sfree: Reused memory\n";
+    else std::cout << "sfree: Failed\n";
 
     return 0;
 }
