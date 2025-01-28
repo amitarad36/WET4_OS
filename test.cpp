@@ -1,17 +1,17 @@
 #include <iostream>
+#include <cstring>
 extern void* smalloc(size_t size);
+extern void* srealloc(void* oldp, size_t size);
 extern void sfree(void* p);
 
 int main() {
-    void* p1 = smalloc(64);
-    //void* p2 = smalloc(64);
+    char* p1 = (char*)smalloc(10);
+    strcpy(p1, "Hello");
 
-    sfree(p1); // Free first block
+    char* p2 = (char*)srealloc(p1, 20);
 
-    void* p3 = smalloc(64); // Should reuse p1's memory
-
-    if (p1 == p3) std::cout << "Memory Reuse: Passed\n";
-    else std::cout << "Memory Reuse: Failed\n";
+    if (p2 && strcmp(p2, "Hello") == 0) std::cout << "srealloc Expand: Passed\n";
+    else std::cout << "srealloc Expand: Failed\n";
 
     return 0;
 }
