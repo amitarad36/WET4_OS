@@ -4,9 +4,12 @@ extern size_t _num_meta_data_bytes();
 extern size_t _size_meta_data();
 
 int main() {
-    size_t before = _num_meta_data_bytes();  // Ensure it's used in output
-    void* p1 = smalloc(100);
+    size_t before = _num_meta_data_bytes();
+    void* p1 = smalloc(100);  // Allocate memory
     size_t after = _num_meta_data_bytes();
+
+    // Use p1 to avoid unused variable warning
+    std::cout << "Allocated at: " << p1 << std::endl;
 
     std::cout << "Metadata Before: " << before << ", After: " << after << std::endl;
 
