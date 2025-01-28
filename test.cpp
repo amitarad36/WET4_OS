@@ -1,17 +1,15 @@
 #include <iostream>
-#include <cstring>
 extern void* smalloc(size_t size);
-extern void* srealloc(void* oldp, size_t size);
-extern void sfree(void* p);
+extern size_t _num_meta_data_bytes();
+extern size_t _size_meta_data();
 
 int main() {
-    char* p1 = (char*)smalloc(10);
-    strcpy(p1, "Hello");
+    size_t before = _num_meta_data_bytes();
+    void* p1 = smalloc(100);
+    size_t after = _num_meta_data_bytes();
 
-    char* p2 = (char*)srealloc(p1, 20);
-
-    if (p2 && strcmp(p2, "Hello") == 0) std::cout << "srealloc Expand: Passed\n";
-    else std::cout << "srealloc Expand: Failed\n";
+    if (after == before + _size_meta_data()) std::cout << "Meta Data Tracking: Passed\n";
+    else std::cout << "Meta Data Tracking: Failed\n";
 
     return 0;
 }
