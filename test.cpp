@@ -3,20 +3,15 @@ extern void* smalloc(size_t size);
 extern void sfree(void* p);
 
 int main() {
-    void* pointers[1000];
+    void* p1 = smalloc(64);
+    void* p2 = smalloc(64);
 
-    for (int i = 0; i < 1000; i++) {
-        pointers[i] = smalloc(32);
-        if (!pointers[i]) {
-            std::cout << "smalloc failed at iteration " << i << "\n";
-            return 1;
-        }
-    }
+    sfree(p1); // Free first block
 
-    for (int i = 0; i < 1000; i++) {
-        sfree(pointers[i]);
-    }
+    void* p3 = smalloc(64); // Should reuse p1's memory
 
-    std::cout << "Stress Test: Passed\n";
+    if (p1 == p3) std::cout << "Memory Reuse: Passed\n";
+    else std::cout << "Memory Reuse: Failed\n";
+
     return 0;
 }
