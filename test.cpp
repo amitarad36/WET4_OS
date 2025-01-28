@@ -3,17 +3,20 @@ extern void* smalloc(size_t size);
 extern void sfree(void* p);
 
 int main() {
-    void* p1 = smalloc(0);
-    void* p2 = smalloc(100000001);
+    void* pointers[1000];
 
-    if (p1 == nullptr) std::cout << "smalloc(0): Passed\n";
-    else std::cout << "smalloc(0): Failed\n";
+    for (int i = 0; i < 1000; i++) {
+        pointers[i] = smalloc(32);
+        if (!pointers[i]) {
+            std::cout << "smalloc failed at iteration " << i << "\n";
+            return 1;
+        }
+    }
 
-    if (p2 == nullptr) std::cout << "smalloc(>100MB): Passed\n";
-    else std::cout << "smalloc(>100MB): Failed\n";
+    for (int i = 0; i < 1000; i++) {
+        sfree(pointers[i]);
+    }
 
-    sfree(nullptr); // Should not crash
-    std::cout << "sfree(nullptr): Passed\n";
-
+    std::cout << "Stress Test: Passed\n";
     return 0;
 }
