@@ -1,13 +1,19 @@
 #include <iostream>
 extern void* smalloc(size_t size);
-extern size_t _num_allocated_blocks();
+extern void sfree(void* p);
 
 int main() {
-    void* p1 = smalloc(100);
-    void* p2 = smalloc(200);
+    void* p1 = smalloc(0);
+    void* p2 = smalloc(100000001);
 
-    std::cout << "Allocated Blocks: " << _num_allocated_blocks() << "\n";
-    std::cout << "Pointer p1: " << p1 << ", Pointer p2: " << p2 << std::endl;
+    if (p1 == nullptr) std::cout << "smalloc(0): Passed\n";
+    else std::cout << "smalloc(0): Failed\n";
+
+    if (p2 == nullptr) std::cout << "smalloc(>100MB): Passed\n";
+    else std::cout << "smalloc(>100MB): Failed\n";
+
+    sfree(nullptr); // Should not crash
+    std::cout << "sfree(nullptr): Passed\n";
 
     return 0;
 }
