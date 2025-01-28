@@ -4,7 +4,7 @@ extern void sfree(void* p);
 
 int main() {
     void* p1 = smalloc(64);
-    void* p2 = smalloc(64);
+    //void* p2 = smalloc(64);
 
     sfree(p1); // Free first block
 
