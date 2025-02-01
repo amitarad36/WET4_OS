@@ -1,9 +1,18 @@
 #include <unistd.h>  // For sbrk
 #include <cstring>   // For memset, memmove
-#include "malloc_metadata.h"
+#include <cstddef>   // For size_t
+
+// ======================== STRUCT DEFINITION ========================
+struct MallocMetadata {
+    size_t size;            // Size of the allocated block (excluding metadata)
+    bool is_free;           // Whether the block is free or not
+    MallocMetadata* next;   // Pointer to the next block
+    MallocMetadata* prev;   // Pointer to the previous block
+};
 
 // Global pointer to the head of the allocation list
 MallocMetadata* head = nullptr;
+
 
 // ======================== HELPER FUNCTIONS ========================
 
