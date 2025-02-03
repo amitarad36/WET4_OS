@@ -93,7 +93,6 @@ void* smalloc(size_t size) {
     return (void*)(block + 1);
 }
 
-
 void* scalloc(size_t num, size_t size) {
     size_t total_size = num * size;
     if (num == 0 || size == 0) return nullptr;
@@ -108,8 +107,12 @@ void sfree(void* p) {
 
     MallocMetadata* block = ((MallocMetadata*)p) - 1;
     block->is_free = true;
+
     int order = 0;
-    while ((1 << order) < block->size && order < MAX_ORDER) order++;
+
+    while (static_cast<size_t>(1 << order) < block->size && order < MAX_ORDER) {
+        order++;
+    }
 
     manager.insert_block(order, block);
     manager.merge_block(order, block);
