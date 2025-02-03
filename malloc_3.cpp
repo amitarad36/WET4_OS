@@ -129,10 +129,18 @@ MallocMetadata* get_buddy(MallocMetadata* block) {
 }
 
 MallocMetadata* split_block_until_fit(int order, size_t required_size) {
+    if (!free_blocks[order]) {
+        return nullptr;
+    }
+    
     MallocMetadata* block = free_blocks[order];
     remove_block(order, block);
 
     while (order > 0) {
+        if (!block) { 
+            return nullptr;
+        }
+
         size_t half_size = block->size / 2;
         if (required_size + sizeof(MallocMetadata) > half_size) break;
 
