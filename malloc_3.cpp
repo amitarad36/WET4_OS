@@ -17,14 +17,30 @@ struct MallocMetadata {
     MallocMetadata* prev;
 };
 
+// Define Global Variables Only in `malloc_3.cpp`
+MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
+bool initialized = false;
+
+// Function Prototypes (No Headers Used)
+void initialize_buddy_allocator();
 void insert_block_sorted(int order, MallocMetadata* block);
 void remove_block(int order, MallocMetadata* block);
 void merge_block(int order, MallocMetadata* block);
+MallocMetadata* get_buddy(MallocMetadata* block);
+MallocMetadata* split_block_until_fit(int order, size_t required_size);
 int get_order(size_t size);
+void* smalloc(size_t size);
+void* scalloc(size_t num, size_t size);
+void sfree(void* p);
 void* srealloc(void* oldp, size_t new_size);
+size_t _num_free_blocks();
+size_t _num_free_bytes();
+size_t _num_allocated_blocks();
+size_t _num_allocated_bytes();
+size_t _num_meta_data_bytes();
+size_t _size_meta_data();
 
-MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
-bool initialized = false;
+// ======================== IMPLEMENTATION ========================
 
 void initialize_buddy_allocator() {
     if (initialized) return;
@@ -81,6 +97,33 @@ void remove_block(int order, MallocMetadata* block) {
     block->prev = nullptr;
 }
 
+void merge_block(int order, MallocMetadata* block) {
+    if (order >= MAX_ORDER) return;
+
+    MallocMetadata* buddy = get_buddy(block);
+    if (!buddy->is_free || buddy->size != block->size) return;
+
+    remove_block(order, buddy);
+
+    if (buddy < block) block = buddy;
+    block->size *= 2;
+
+    merge_block(order + 1, block);
+}
+
+int get_order(size_t size) {
+    size += sizeof(MallocMetadata);
+    int order = 0;
+    size_t block_size = MIN_BLOCK_SIZE;
+
+    while (block_size < size) {
+        block_size *= 2;
+        order++;
+        if (order > MAX_ORDER) return -1;
+    }
+    return order;
+}
+
 MallocMetadata* get_buddy(MallocMetadata* block) {
     return (MallocMetadata*)((uintptr_t)block ^ block->size);
 }
@@ -103,33 +146,6 @@ MallocMetadata* split_block_until_fit(int order, size_t required_size) {
     }
 
     return block;
-}
-
-int get_order(size_t size) {
-    size += sizeof(MallocMetadata);
-    int order = 0;
-    size_t block_size = MIN_BLOCK_SIZE;
-
-    while (block_size < size) {
-        block_size *= 2;
-        order++;
-        if (order > MAX_ORDER) return -1;
-    }
-    return order;
-}
-
-void merge_block(int order, MallocMetadata* block) {
-    if (order >= MAX_ORDER) return;
-
-    MallocMetadata* buddy = get_buddy(block);
-    if (!buddy->is_free || buddy->size != block->size) return;
-
-    remove_block(order, buddy);
-
-    if (buddy < block) block = buddy;
-    block->size *= 2;
-
-    merge_block(order + 1, block);
 }
 
 void* smalloc(size_t size) {
@@ -158,6 +174,37 @@ void* smalloc(size_t size) {
     remove_block(order, block);
     block->is_free = false;
     return (void*)(block + 1);
+}
+
+void* srealloc(void* oldp, size_t new_size) {
+    if (new_size == 0) {
+        sfree(oldp);
+        return nullptr;
+    }
+    if (!oldp) return smalloc(new_size);
+
+    MallocMetadata* block = ((MallocMetadata*)oldp) - 1;
+    size_t old_size = block->size;
+
+    if (old_size == new_size) return oldp;
+
+    if (old_size >= 128 * 1024) {
+        void* newp = smalloc(new_size);
+        if (!newp) return nullptr;
+
+        memcpy(newp, oldp, old_size < new_size ? old_size : new_size);
+        sfree(oldp);
+        return newp;
+    }
+
+    if (new_size <= old_size) return oldp;
+
+    void* newp = smalloc(new_size);
+    if (!newp) return nullptr;
+
+    memcpy(newp, oldp, old_size < new_size ? old_size : new_size);
+    sfree(oldp);
+    return newp;
 }
 
 void* scalloc(size_t num, size_t size) {
