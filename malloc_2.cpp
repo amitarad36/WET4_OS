@@ -9,59 +9,63 @@ struct MallocMetadata {
     MallocMetadata* prev;
 };
 
-MallocMetadata* head = nullptr;
+class FreeBlockList {
+public:
+    MallocMetadata* head;
 
-// Insert block in sorted order
-void insert_sorted(MallocMetadata* block) {
-    block->is_free = true;
-    if (!head || block < head) {
-        block->next = head;
-        if (head) head->prev = block;
-        head = block;
-        return;
-    }
-    MallocMetadata* curr = head;
-    while (curr->next && curr->next < block) {
-        curr = curr->next;
-    }
-    block->next = curr->next;
-    block->prev = curr;
-    if (curr->next) curr->next->prev = block;
-    curr->next = block;
-}
+    FreeBlockList() : head(nullptr) {}
 
-// Find the first free block that fits
-MallocMetadata* find_free_block(size_t size) {
-    MallocMetadata* curr = head;
-    while (curr) {
-        if (curr->is_free && curr->size >= size) {
-            curr->is_free = false;
-            return curr;
+    void insert(MallocMetadata* block) {
+        block->is_free = true;
+        if (!head || block < head) {
+            block->next = head;
+            if (head) head->prev = block;
+            head = block;
+            return;
         }
-        curr = curr->next;
-    }
-    return nullptr;
-}
-
-// Merging adjacent free blocks
-void merge_free_blocks() {
-    MallocMetadata* curr = head;
-    while (curr && curr->next) {
-        if (curr->is_free && curr->next->is_free) {
-            curr->size += sizeof(MallocMetadata) + curr->next->size;
-            curr->next = curr->next->next;
-            if (curr->next) curr->next->prev = curr;
-        }
-        else {
+        MallocMetadata* curr = head;
+        while (curr->next && curr->next < block) {
             curr = curr->next;
         }
+        block->next = curr->next;
+        block->prev = curr;
+        if (curr->next) curr->next->prev = block;
+        curr->next = block;
     }
-}
+
+    MallocMetadata* find_free_block(size_t size) {
+        MallocMetadata* curr = head;
+        while (curr) {
+            if (curr->is_free && curr->size >= size) {
+                curr->is_free = false;
+                return curr;
+            }
+            curr = curr->next;
+        }
+        return nullptr;
+    }
+
+    void merge() {
+        MallocMetadata* curr = head;
+        while (curr && curr->next) {
+            if (curr->is_free && curr->next->is_free) {
+                curr->size += sizeof(MallocMetadata) + curr->next->size;
+                curr->next = curr->next->next;
+                if (curr->next) curr->next->prev = curr;
+            }
+            else {
+                curr = curr->next;
+            }
+        }
+    }
+};
+
+FreeBlockList freeBlocks;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > 100000000) return nullptr;
 
-    MallocMetadata* block = find_free_block(size);
+    MallocMetadata* block = freeBlocks.find_free_block(size);
     if (block) return (void*)(block + 1);
 
     block = (MallocMetadata*)sbrk(size + sizeof(MallocMetadata));
@@ -69,7 +73,7 @@ void* smalloc(size_t size) {
 
     block->size = size;
     block->is_free = false;
-    insert_sorted(block);
+    freeBlocks.insert(block);
 
     return (void*)(block + 1);
 }
@@ -87,7 +91,7 @@ void sfree(void* p) {
     if (!p) return;
     MallocMetadata* block = ((MallocMetadata*)p) - 1;
     block->is_free = true;
-    merge_free_blocks();
+    freeBlocks.merge();
 }
 
 void* srealloc(void* oldp, size_t size) {
@@ -99,18 +103,8 @@ void* srealloc(void* oldp, size_t size) {
 
     MallocMetadata* block = ((MallocMetadata*)oldp) - 1;
 
-    // If new size is smaller, reuse same block
     if (size <= block->size) return oldp;
 
-    // Try to extend the current block if adjacent memory is free
-    if (block->next && block->next->is_free && (block->size + sizeof(MallocMetadata) + block->next->size >= size)) {
-        block->size += sizeof(MallocMetadata) + block->next->size;
-        block->next = block->next->next;
-        if (block->next) block->next->prev = block;
-        return oldp;
-    }
-
-    // Allocate new block and copy data
     void* newp = smalloc(size);
     if (!newp) return nullptr;
 
