@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int main(int argc, char** argv) {
-    unsigned int x = atoi(argv[1]);
-    void* memory = malloc(x);
+    dup(0);
+    void* memory = malloc(atoi(argv[1]));
+    dup(0);
     free(memory);
-    return 0;
 }
