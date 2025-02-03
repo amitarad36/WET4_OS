@@ -74,6 +74,15 @@ void* smalloc(size_t size) {
     return (void*)(block + 1);
 }
 
+void* scalloc(size_t num, size_t size) {
+    size_t total_size = num * size;
+    if (num == 0 || size == 0) return nullptr;
+
+    void* ptr = smalloc(total_size);
+    if (ptr) memset(ptr, 0, total_size);
+    return ptr;
+}
+
 void sfree(void* p) {
     if (!p) return;
     MallocMetadata* block = ((MallocMetadata*)p) - 1;
@@ -89,8 +98,19 @@ void* srealloc(void* oldp, size_t size) {
     if (!oldp) return smalloc(size);
 
     MallocMetadata* block = ((MallocMetadata*)oldp) - 1;
+
+    // If new size is smaller, reuse same block
     if (size <= block->size) return oldp;
 
+    // Try to extend the current block if adjacent memory is free
+    if (block->next && block->next->is_free && (block->size + sizeof(MallocMetadata) + block->next->size >= size)) {
+        block->size += sizeof(MallocMetadata) + block->next->size;
+        block->next = block->next->next;
+        if (block->next) block->next->prev = block;
+        return oldp;
+    }
+
+    // Allocate new block and copy data
     void* newp = smalloc(size);
     if (!newp) return nullptr;
 
