@@ -1,164 +1,255 @@
 #include <unistd.h>
-#include <cstring>
-#include <cstddef>
+#include <string.h>
+#define MAX_MEMORY_ALLOCATED_SIZE 100000000 // 10^8
 
-struct MallocMetadata {
+/*
+---------------------------------------
+            HELPER STUFF
+---------------------------------------
+*/
+//struct for metadata
+typedef struct MallocMetadata
+{
     size_t size;
     bool is_free;
     MallocMetadata* next;
     MallocMetadata* prev;
-};
+}MetaData;
 
-class FreeBlockList {
+//we need a list for all the blocks
+
+class SortedBlocks
+{
+    MetaData* list;
+
 public:
-    MallocMetadata* head;
+    SortedBlocks() : list(NULL)
+    {
 
-    FreeBlockList() : head(nullptr) {}
-
-    void insert(MallocMetadata* block) {
-        block->is_free = true;
-        if (!head || block < head) {
-            block->next = head;
-            if (head) head->prev = block;
-            head = block;
-            return;
-        }
-        MallocMetadata* curr = head;
-        while (curr->next && curr->next < block) {
-            curr = curr->next;
-        }
-        block->next = curr->next;
-        block->prev = curr;
-        if (curr->next) curr->next->prev = block;
-        curr->next = block;
     }
-
-    MallocMetadata* find_free_block(size_t size) {
-        MallocMetadata* curr = head;
-        while (curr) {
-            if (curr->is_free && curr->size >= size) {
-                curr->is_free = false;
-                return curr;
-            }
-            curr = curr->next;
-        }
-        return nullptr;
+    MetaData* get_start_of_block(void* block)
+    {
+        return (MetaData*)((char*)block - sizeof(MetaData));
     }
-
-    void merge() {
-        MallocMetadata* curr = head;
-        while (curr && curr->next) {
-            if (curr->is_free && curr->next->is_free) {
-                curr->size += sizeof(MallocMetadata) + curr->next->size;
-                curr->next = curr->next->next;
-                if (curr->next) curr->next->prev = curr;
-            }
-            else {
-                curr = curr->next;
-            }
+    // basically free
+    void release_used_block(void* block_place)
+    {
+        MetaData* current_block = get_start_of_block(block_place);
+        current_block->is_free = true;
+    }
+    // adding a block in sorted manner
+    void add_block_to_list(MetaData* block)
+    {
+        //we need to add it sorted.
+        //However, since we only insert onces with larger value from sbrk
+        //It will be sorted by defenition
+        MetaData* prev = NULL;
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            prev = current;
+            current = current->next;
         }
+
+        if (prev != NULL) // list is in size 1 or more
+        {
+            prev->next = block;
+            block->prev = prev;
+        }
+        else // empty list
+        {
+            list = block;
+        }
+    }
+    // malloc
+    void* create_memory_for_block(size_t size)
+    {
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            if (current->size >= size && current->is_free) // we found a free block!
+            {
+                current->is_free = false;
+                return current;
+            }
+            current = current->next;
+        }
+        // we got here, so we need a new block
+        // by proposed solution, will be alocated in the heap (sbrk)
+        size_t total_allocation_cost = size + sizeof(MetaData);
+        void* p_break = sbrk(total_allocation_cost);
+        if (p_break == (void*)-1) // sbrk failed
+        {
+            return NULL;
+        }
+        // allocate the new block
+        MetaData* new_block_allocated = (MetaData*)p_break;
+        new_block_allocated->size = size;
+        new_block_allocated->is_free = false;
+        new_block_allocated->next = NULL;
+        new_block_allocated->prev = NULL;
+        add_block_to_list(new_block_allocated);
+        return new_block_allocated;
+    }
+    //get sum of all bytes (no metadata)
+    size_t get_sum_of_all_bytes()
+    {
+        size_t sum = 0;
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            sum += current->size;
+            current = current->next;
+        }
+        return sum;
+    }
+    //get sum of all blocks
+    size_t get_number_of_all_blocks()
+    {
+        size_t counter = 0;
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            counter++;
+            current = current->next;
+        }
+        return counter;
+    }
+    //get sum of all free bytes (no metadata)
+    size_t get_sum_of_all_free_bytes()
+    {
+        size_t sum = 0;
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            if (current->is_free)
+            {
+                sum += current->size;
+            }
+            current = current->next;
+        }
+        return sum;
+    }
+    //get sum of all free blocks
+    size_t get_number_of_all_free_blocks()
+    {
+        size_t counter = 0;
+        MetaData* current = list;
+        while (current != NULL)
+        {
+            if (current->is_free)
+            {
+                counter++;
+            }
+            current = current->next;
+        }
+        return counter;
     }
 };
 
-// **Declare FreeBlockList Globally**
-FreeBlockList freeBlocks;
+/*
+---------------------------------------
+            IMPLEMENTATION
+---------------------------------------
+*/
 
-void* smalloc(size_t size) {
-    if (size == 0 || size > 100000000) return nullptr;
+//global list
+SortedBlocks list = SortedBlocks();
 
-    MallocMetadata* block = freeBlocks.find_free_block(size);
-    if (block) return (void*)(block + 1);
-
-    block = (MallocMetadata*)sbrk(size + sizeof(MallocMetadata));
-    if (block == (void*)-1) return nullptr;
-
-    block->size = size;
-    block->is_free = false;
-    freeBlocks.insert(block);
-
-    return (void*)(block + 1);
-}
-
-void* scalloc(size_t num, size_t size) {
-    size_t total_size = num * size;
-    if (num == 0 || size == 0) return nullptr;
-
-    void* ptr = smalloc(total_size);
-    if (ptr) memset(ptr, 0, total_size);
-    return ptr;
-}
-
-void sfree(void* p) {
-    if (!p) return;
-    MallocMetadata* block = ((MallocMetadata*)p) - 1;
-    block->is_free = true;
-    freeBlocks.merge();
-}
-
-void* srealloc(void* oldp, size_t size) {
-    if (size == 0) {
-        sfree(oldp);
-        return nullptr;
+void* smalloc(size_t size)
+{
+    //size conditions
+    if (size == 0)
+    {
+        return NULL;
     }
-    if (!oldp) return smalloc(size);
+    if (size > MAX_MEMORY_ALLOCATED_SIZE)
+    {
+        return NULL;
+    }
+    void* p_break = list.create_memory_for_block(size);
+    if (p_break == NULL) // something failed
+    {
+        return NULL;
+    }
+    return (char*)p_break + sizeof(MetaData);
+}
+void* scalloc(size_t num, size_t size)
+{
+    //so we need the same behaviour as smalloc, but set all to 0
+    void* place = smalloc(size * num); // will also check for size*num constrains
+    if (place == NULL) // problem detected
+    {
+        return NULL;
+    }
+    memset(place, 0, size * num); // we were told to use it in the pdf
+    return place;
+}
+void sfree(void* p)
+{
+    if (p != NULL)
+    {
+        list.release_used_block(p);
+    }
+}
+void* srealloc(void* oldp, size_t size)
+{
+    //size conditions
+    if (size == 0)
+    {
+        return NULL;
+    }
+    if (size > MAX_MEMORY_ALLOCATED_SIZE)
+    {
+        return NULL;
+    }
 
-    MallocMetadata* block = ((MallocMetadata*)oldp) - 1;
+    //no previous block
+    if (oldp == NULL)
+    {
+        return smalloc(size);
+    }
 
-    if (size <= block->size) return oldp;
+    //check if size can fit in this block
+    MetaData* block_data = list.get_start_of_block(oldp);
+    size_t old_block_size = block_data->size;
+    if (old_block_size >= size) // current vlock will do
+    {
+        return oldp;
+    }
 
-    void* newp = smalloc(size);
-    if (!newp) return nullptr;
+    //we need a new block
 
-    memcpy(newp, oldp, block->size);
+    void* new_block = smalloc(size);
+    if (new_block == NULL)
+    {
+        return NULL;
+    }
+    memmove(new_block, oldp, old_block_size); // copy the content
     sfree(oldp);
-    return newp;
+    return new_block;
 }
-
-// **Fixed Statistics Functions**
-size_t _num_free_blocks() {
-    size_t count = 0;
-    MallocMetadata* curr = freeBlocks.head;
-    while (curr) {
-        if (curr->is_free) count++;
-        curr = curr->next;
-    }
-    return count;
+size_t _num_free_blocks()
+{
+    return list.get_number_of_all_free_blocks();
 }
-
-size_t _num_free_bytes() {
-    size_t total = 0;
-    MallocMetadata* curr = freeBlocks.head;
-    while (curr) {
-        if (curr->is_free) total += curr->size;
-        curr = curr->next;
-    }
-    return total;
+size_t _num_free_bytes()
+{
+    return list.get_sum_of_all_free_bytes();
 }
-
-size_t _num_allocated_blocks() {
-    size_t count = 0;
-    MallocMetadata* curr = freeBlocks.head;
-    while (curr) {
-        count++;
-        curr = curr->next;
-    }
-    return count;
+size_t _num_allocated_blocks()
+{
+    return list.get_number_of_all_blocks();
 }
-
-size_t _num_allocated_bytes() {
-    size_t total = 0;
-    MallocMetadata* curr = freeBlocks.head;
-    while (curr) {
-        total += curr->size;
-        curr = curr->next;
-    }
-    return total;
+size_t _num_allocated_bytes()
+{
+    return list.get_sum_of_all_bytes();
 }
-
-size_t _num_meta_data_bytes() {
-    return _num_allocated_blocks() * sizeof(MallocMetadata);
+size_t _size_meta_data()
+{
+    return sizeof(MetaData);
 }
-
-size_t _size_meta_data() {
-    return sizeof(MallocMetadata);
+size_t _num_meta_data_bytes()
+{
+    return (_size_meta_data() * _num_allocated_blocks());
 }
