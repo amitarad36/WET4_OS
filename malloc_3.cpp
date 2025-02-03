@@ -17,6 +17,7 @@ struct MallocMetadata {
 };
 
 void insert_block_sorted(int order, MallocMetadata* block);
+void remove_block(int order, MallocMetadata* block);
 
 MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
 bool initialized = false;
