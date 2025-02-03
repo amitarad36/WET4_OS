@@ -83,12 +83,16 @@ void* smalloc(size_t size) {
 
     int order = 0;
     size += sizeof(MallocMetadata);
-    while ((1 << order) < size && order < MAX_ORDER) order++;
+
+    while (static_cast<size_t>(1 << order) < size && order < MAX_ORDER) {
+        order++;
+    }
 
     MallocMetadata* block = manager.get_free_block(order);
     if (!block) return nullptr;
     return (void*)(block + 1);
 }
+
 
 void* scalloc(size_t num, size_t size) {
     size_t total_size = num * size;
