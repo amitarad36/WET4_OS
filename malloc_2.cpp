@@ -60,6 +60,7 @@ public:
     }
 };
 
+// **Declare FreeBlockList Globally**
 FreeBlockList freeBlocks;
 
 void* smalloc(size_t size) {
@@ -113,34 +114,43 @@ void* srealloc(void* oldp, size_t size) {
     return newp;
 }
 
+// **Fixed Statistics Functions**
 size_t _num_free_blocks() {
     size_t count = 0;
-    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+    MallocMetadata* curr = freeBlocks.head;
+    while (curr) {
         if (curr->is_free) count++;
+        curr = curr->next;
     }
     return count;
 }
 
 size_t _num_free_bytes() {
     size_t total = 0;
-    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+    MallocMetadata* curr = freeBlocks.head;
+    while (curr) {
         if (curr->is_free) total += curr->size;
+        curr = curr->next;
     }
     return total;
 }
 
 size_t _num_allocated_blocks() {
     size_t count = 0;
-    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+    MallocMetadata* curr = freeBlocks.head;
+    while (curr) {
         count++;
+        curr = curr->next;
     }
     return count;
 }
 
 size_t _num_allocated_bytes() {
     size_t total = 0;
-    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+    MallocMetadata* curr = freeBlocks.head;
+    while (curr) {
         total += curr->size;
+        curr = curr->next;
     }
     return total;
 }
