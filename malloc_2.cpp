@@ -99,52 +99,36 @@ void* srealloc(void* oldp, size_t size) {
     return newp;
 }
 
-size_t _num_allocated_bytes() {
-    size_t total = 0;
-    for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = free_blocks[i];
-        while (curr) {
-            total += curr->size;
-            curr = curr->next;
-        }
-    }
-    return total;
-}
-
 size_t _num_free_blocks() {
     size_t count = 0;
-    for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = free_blocks[i];
-        while (curr) {
-            count++;
-            curr = curr->next;
-        }
+    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+        if (curr->is_free) count++;
     }
     return count;
 }
 
 size_t _num_free_bytes() {
     size_t total = 0;
-    for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = free_blocks[i];
-        while (curr) {
-            total += curr->size;
-            curr = curr->next;
-        }
+    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+        if (curr->is_free) total += curr->size;
     }
     return total;
 }
 
 size_t _num_allocated_blocks() {
-    size_t count = INITIAL_BLOCK_COUNT; // Count initial 32 blocks
-    for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = free_blocks[i];
-        while (curr) {
-            count++;
-            curr = curr->next;
-        }
+    size_t count = 0;
+    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+        count++;
     }
     return count;
+}
+
+size_t _num_allocated_bytes() {
+    size_t total = 0;
+    for (MallocMetadata* curr = head; curr; curr = curr->next) {
+        total += curr->size;
+    }
+    return total;
 }
 
 size_t _num_meta_data_bytes() {
