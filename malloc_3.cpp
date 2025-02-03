@@ -6,8 +6,8 @@
 #define MAX_ORDER 10
 #define MIN_BLOCK_SIZE 128
 #define INITIAL_BLOCK_COUNT 32
-#define INITIAL_HEAP_SIZE (INITIAL_BLOCK_COUNT * (128 * 1024)) // 32 * 128KB
-#define ALIGNMENT (INITIAL_BLOCK_COUNT * (128 * 1024)) // Ensures buddy alignment
+#define INITIAL_HEAP_SIZE (INITIAL_BLOCK_COUNT * (128 * 1024))
+#define ALIGNMENT (INITIAL_BLOCK_COUNT * (128 * 1024))
 
 struct MallocMetadata {
     size_t size;
@@ -18,6 +18,8 @@ struct MallocMetadata {
 
 void insert_block_sorted(int order, MallocMetadata* block);
 void remove_block(int order, MallocMetadata* block);
+void merge_block(int order, MallocMetadata* block);
+int get_order(size_t size);
 
 MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
 bool initialized = false;
@@ -66,6 +68,17 @@ void insert_block_sorted(int order, MallocMetadata* block) {
     else free_blocks[order] = block;
 }
 
+void remove_block(int order, MallocMetadata* block) {
+    if (!block) return;
+
+    if (block->prev) block->prev->next = block->next;
+    if (block->next) block->next->prev = block->prev;
+    if (free_blocks[order] == block) free_blocks[order] = block->next;
+
+    block->next = nullptr;
+    block->prev = nullptr;
+}
+
 MallocMetadata* get_buddy(MallocMetadata* block) {
     return (MallocMetadata*)((uintptr_t)block ^ block->size);
 }
@@ -88,6 +101,33 @@ MallocMetadata* split_block_until_fit(int order, size_t required_size) {
     }
 
     return block;
+}
+
+int get_order(size_t size) {
+    size += sizeof(MallocMetadata);
+    int order = 0;
+    size_t block_size = MIN_BLOCK_SIZE;
+
+    while (block_size < size) {
+        block_size *= 2;
+        order++;
+        if (order > MAX_ORDER) return -1;
+    }
+    return order;
+}
+
+void merge_block(int order, MallocMetadata* block) {
+    if (order >= MAX_ORDER) return;
+
+    MallocMetadata* buddy = get_buddy(block);
+    if (!buddy->is_free || buddy->size != block->size) return;
+
+    remove_block(order, buddy);
+
+    if (buddy < block) block = buddy;
+    block->size *= 2;
+
+    merge_block(order + 1, block);
 }
 
 void* smalloc(size_t size) {
@@ -167,8 +207,20 @@ size_t _num_free_bytes() {
     return total;
 }
 
+size_t _num_allocated_blocks() {
+    size_t count = INITIAL_BLOCK_COUNT; // Initial blocks
+    for (int i = 0; i <= MAX_ORDER; i++) {
+        MallocMetadata* current = free_blocks[i];
+        while (current) {
+            count++;
+            current = current->next;
+        }
+    }
+    return count;
+}
+
 size_t _num_meta_data_bytes() {
-    return _num_free_blocks() * sizeof(MallocMetadata);
+    return _num_allocated_blocks() * sizeof(MallocMetadata);
 }
 
 size_t _size_meta_data() {
