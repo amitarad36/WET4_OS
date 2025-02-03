@@ -131,7 +131,6 @@ MallocMetadata* get_buddy(MallocMetadata* block) {
     return (MallocMetadata*)((uintptr_t)block ^ block->size);
 }
 
-
 MallocMetadata* split_block_until_fit(int order, size_t required_size) {
     if (!free_blocks[order]) {
         return nullptr;
@@ -296,4 +295,20 @@ size_t _num_meta_data_bytes() {
 
 size_t _size_meta_data() {
     return sizeof(MallocMetadata);
+}
+
+size_t _num_allocated_bytes() {
+    size_t total = 0;
+
+    // Count allocated bytes in the buddy allocator
+    for (int i = 0; i <= MAX_ORDER; i++) {
+        MallocMetadata* current = free_blocks[i];
+        while (current) {
+            total += current->size;
+            current = current->next;
+        }
+    }
+
+    // If any blocks were allocated via mmap(), they should be counted separately
+    return total;
 }
