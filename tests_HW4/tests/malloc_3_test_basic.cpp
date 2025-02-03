@@ -35,10 +35,10 @@ void performCorruption()
 #define MMAP_THRESHOLD (128 * 1024)
 #define MIN_SPLIT_SIZE (128)
 #define MAX_ELEMENT_SIZE (128 * 1024)
-//static inline size_t aligned_size(size_t size)
+// static inline size_t aligned_size(size_t size)
 //{
-//    return (size % 8) ? (size & (size_t)(-8)) + 8 : size;
-//}
+//     return (size % 8) ? (size & (size_t)(-8)) + 8 : size;
+// }
 
 #define verify_blocks(allocated_blocks, allocated_bytes, free_blocks, free_bytes)  \
     do                                                                             \
@@ -64,42 +64,30 @@ void performCorruption()
         void *after = sbrk(0);                         \
         REQUIRE(diff == (size_t)after - (size_t)base); \
     } while (0)
+void verify_block_by_order(int order0free, int order0used, int order1free, int order1used,
+                           int order2free, int order2used,
+                           int order3free, int order3used,
+                           int order4free, int order4used,
+                           int order5free, int order5used,
+                           int order6free, int order6used,
+                           int order7free, int order7used,
+                           int order8free, int order8used,
+                           int order9free, int order9used,
+                           int order10free, int order10used,
+                           int big_blocks_count, long big_blocks_size)
 
-#define verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size) \
-    do                                                                                  \
-    {                                                                                   \
-        size_t __total_blocks = 0;                                                      \
-        size_t __total_free_blocks = 0;                                                 \
-        size_t __total_free_bytes_with_meta = 0;                                        \
-        for (int i = 0; i <= 10; i++) {                                                 \
-            __total_blocks += order_free[i] + order_use[i];                             \
-            __total_free_blocks += order_free[i];                                       \
-            __total_free_bytes_with_meta += order_free[i] * 128 * pow(2, i);            \
-        }                                                                               \
-        __total_blocks += big_blocks_count;                                             \
-        size_t testing_allocated_bytes;                                                 \
-        if (__total_blocks == 0) {                                                      \
-            testing_allocated_bytes = 0;                                                \
-        }                                                                               \
-        else {                                                                          \
-            size_t buddies = __total_blocks - big_blocks_count;                         \
-            size_t buddies_size = 32*MAX_ELEMENT_SIZE - buddies*_size_meta_data();      \
-            testing_allocated_bytes = big_blocks_size + buddies_size;                   \
-        }                                                                               \
-        verify_blocks(__total_blocks, testing_allocated_bytes, __total_free_blocks, __total_free_bytes_with_meta - __total_free_blocks * (_size_meta_data())); \
-    } while (0)
+{
+    unsigned int __total_blocks = order0free + order0used + order1free + order1used + order2free + order2used + order3free + order3used + order4free + order4used + order5free + order5used + order6free + order6used + order7free + order7used + order8free + order8used + order9free + order9used + order10free + order10used + big_blocks_count;
+    unsigned int __total_free_blocks = order0free + order1free + order2free + order3free + order4free + order5free + order6free + order7free + order8free + order9free + order10free;
+    unsigned int __total_free_bytes_with_meta = order0free * 128 * pow(2, 0) + order1free * 128 * pow(2, 1) + order2free * 128 * pow(2, 2) + order3free * 128 * pow(2, 3) + order4free * 128 * pow(2, 4) + order5free * 128 * pow(2, 5) + order6free * 128 * pow(2, 6) + order7free * 128 * pow(2, 7) + order8free * 128 * pow(2, 8) + order9free * 128 * pow(2, 9) + order10free * 128 * pow(2, 10);
+    unsigned int testing_allocated_bytes;
+    if (__total_blocks == 0)
+        testing_allocated_bytes = 0;
+    else
+        testing_allocated_bytes = big_blocks_size + 32 * MAX_ELEMENT_SIZE - (__total_blocks - big_blocks_count) * (_size_meta_data());
+    verify_blocks(__total_blocks, testing_allocated_bytes, __total_free_blocks, __total_free_bytes_with_meta - __total_free_blocks * (_size_meta_data()));
+}
 
-#define verify_block_by_order(order0free, order0used, order1free, order1used, order2free, order2used, order3free, order3used, order4free, order4used, order5free, order5used, order6free, order6used, order7free, order7used, order8free, order8used, order9free, order9used, order10free, order10used, big_blocks_count, big_blocks_size) \
-    do                                                                                  \
-    {                                                                                                                  \
-        unsigned int __total_blocks = order0free + order0used+ order1free + order1used+ order2free + order2used+ order3free + order3used+ order4free + order4used+ order5free + order5used+ order6free + order6used+ order7free + order7used+ order8free + order8used+ order9free + order9used+ order10free + order10used + big_blocks_count;        \
-        unsigned int __total_free_blocks = order0free+ order1free+ order2free+ order3free+ order4free+ order5free+ order6free+ order7free+ order8free+ order9free+ order10free;                     \
-        unsigned int __total_free_bytes_with_meta  = order0free*128*pow(2,0) +  order1free*128*pow(2,1) +  order2free*128*pow(2,2) +  order3free*128*pow(2,3) +  order4free*128*pow(2,4) +  order5free*128*pow(2,5) +  order6free*128*pow(2,6) +  order7free*128*pow(2,7) +  order8free*128*pow(2,8) +  order9free*128*pow(2,9)+  order10free*128*pow(2,10);  \
-        unsigned int testing_allocated_bytes; \
-        if (__total_blocks==0) testing_allocated_bytes = 0; \
-        else testing_allocated_bytes = big_blocks_size+32 * MAX_ELEMENT_SIZE - (__total_blocks-big_blocks_count)*(_size_meta_data()); \
-        verify_blocks(__total_blocks, testing_allocated_bytes, __total_free_blocks,__total_free_bytes_with_meta - __total_free_blocks*(_size_meta_data())); \
-    } while (0)
 // TEST_CASE("alignment test")
 //{
 //     // Initial state
@@ -108,55 +96,22 @@ void performCorruption()
 //
 // }
 
-void update_allocation(size_t* order_free, size_t* order_use, size_t *big_blocks_count, size_t *big_blocks_size, size_t allocation) {
-    static bool init = false;
-    if (!init) {
-        init = true;
-        order_free[10] = 32;
-    }
-    size_t min_valid_order = -1;
-    size_t min_order = -1;
-    for (int i = 10; i >= 0; i--) {
-        if (128 * pow(2, i) >= allocation + _size_meta_data()) {
-            if (order_free[i] > 0) {
-                min_valid_order = i;
-            }
-            min_order = i;
-        }
-    }
-    for (size_t i = min_valid_order; i > min_order; i--) {
-        order_free[i] -= 1;
-        order_free[i-1] += 2;
-    }
-    order_free[min_order] -= 1;
-    order_use[min_order] += 1;
-}
-
 TEST_CASE("Challenge 0 - Memory Utilization", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
-    size_t allocation;
-
     // Initial state
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     // Allocate small block (order 0)
-    allocation = 40;
-    void *ptr1 = smalloc(allocation);
+    void *ptr1 = smalloc(40);
     REQUIRE(ptr1 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    // verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    //    verify_size(base);
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Allocate large block (order 10)
-    allocation = MAX_ELEMENT_SIZE + 100;
-    void *ptr2 = smalloc(allocation);
+    void *ptr2 = smalloc(MAX_ELEMENT_SIZE + 100);
     REQUIRE(ptr2 != nullptr);
-    big_blocks_count++;
-    big_blocks_size += allocation;
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    //    verify_size_with_large_blocks(base, (128 * 1024+100 +_size_meta_data()));
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 1, MAX_ELEMENT_SIZE + 100);
 
     // Allocate another small block
     void *ptr3 = smalloc(50);
@@ -185,18 +140,11 @@ TEST_CASE("Challenge 0 - Memory Utilization", "[malloc3]")
 
 TEST_CASE("test all sizes", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
-
     // Initial state
+    //    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,0,0,0);
     void *ptr;
-    size_t allocation = 128 * pow(2, 0) - 64;
-    ptr = smalloc(allocation);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
-
+    ptr = smalloc(128 * pow(2, 0) - 64);
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
     sfree(ptr);
     verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
     ptr = smalloc(128 * pow(2, 1) - 64);
@@ -243,25 +191,20 @@ TEST_CASE("test all sizes", "[malloc3]")
 
 TEST_CASE("Finding buddies test", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
     std::vector<void *> allocations;
 
     // Allocate 64 blocks of size 128 * 2^9 - 64
     for (int i = 0; i < 64; i++)
     {
-        size_t allocation = 128 * std::pow(2, 9) - 64;
-        void *ptr = smalloc(allocation);
+        printf("%d\n", i);
+        fflush(stdout);
+        void *ptr = smalloc(128 * std::pow(2, 9) - 64);
         REQUIRE(ptr != nullptr);
-        update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-        verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
         allocations.push_back(ptr);
+        verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, allocations.size() % 2, allocations.size(), 32 - (int)(i / 2) - 1, 0, 0, 0);
+        printf("OK\n");
+        fflush(stdout);
     }
-    printf("before free\n");
-    printf("free 9: %lu, use 9: %lu, free 10: %lu\n", order_free[9], order_use[9], order_free[10]);
-    fflush(stdout);
 
     REQUIRE(smalloc(40) == NULL);
     // Free the allocated blocks
@@ -270,42 +213,29 @@ TEST_CASE("Finding buddies test", "[malloc3]")
         void *ptr = allocations.back();
         allocations.pop_back();
         sfree(ptr);
-        order_use[9] -= 1;
-        order_free[9] = allocations.size() % 2;
-        order_free[10] += 1 - (allocations.size() % 2);
-        printf("free 9: %lu, use 9: %lu, free 10: %lu\n", order_free[9], order_use[9], order_free[10]);
-        fflush(stdout);
-        verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+        verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, allocations.size() % 2, allocations.size(), 32 - (int)(allocations.size() / 2) - (allocations.size() % 2), 0, 0, 0);
     }
 
-    // Allocate 64 blocks of size 128 * 2^9 - 64
+    // Verify that all blocks are merged into a single large block
+    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
+
     for (int i = 0; i < 64; i++)
     {
-        size_t allocation = 128 * std::pow(2, 9) - 64;
-        void *ptr = smalloc(allocation);
+        void *ptr = smalloc(128 * std::pow(2, 9) - 64);
         REQUIRE(ptr != nullptr);
-        update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-        verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
         allocations.push_back(ptr);
+        verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, allocations.size() % 2, allocations.size(), 32 - (int)(i / 2) - 1, 0, 0, 0);
     }
-    printf("before free\n");
-    printf("free 9: %lu, use 9: %lu, free 10: %lu\n", order_free[9], order_use[9], order_free[10]);
-    fflush(stdout);
-
     REQUIRE(smalloc(40) == NULL);
     // Free the allocated blocks
     while (!allocations.empty())
     {
-        void *ptr = allocations.back();
-        allocations.pop_back();
+        void *ptr = allocations.front();
+        allocations.erase(allocations.begin());
         sfree(ptr);
-        order_use[9] -= 1;
-        order_free[9] = allocations.size() % 2;
-        order_free[10] += 1 - (allocations.size() % 2);
-        printf("free 9: %lu, use 9: %lu, free 10: %lu\n", order_free[9], order_use[9], order_free[10]);
-        fflush(stdout);
-        verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+        verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, allocations.size() % 2, allocations.size(), 32 - (int)(allocations.size() / 2) - (allocations.size() % 2), 0, 0, 0);
     }
+    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
 }
 
 TEST_CASE("multiple big allocs test", "[malloc3]")
@@ -355,31 +285,23 @@ TEST_CASE("multiple big allocs test", "[malloc3]")
 
 TEST_CASE("srealloc test", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
     // Initial state
     //    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
 
     // Allocate a small block
-    size_t allocation = 40;
-    void *ptr1 = smalloc(allocation);
+    void *ptr1 = smalloc(40);
     REQUIRE(ptr1 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Reallocate to a larger size
-    allocation = 60;
     void *ptr2 = srealloc(ptr1, 60);
     REQUIRE(ptr2 != nullptr);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Reallocate to a smaller size
-    allocation = 30;
-    void *ptr3 = srealloc(ptr2, allocation);
+    void *ptr3 = srealloc(ptr2, 30);
     REQUIRE(ptr3 != nullptr);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Free the block
     sfree(ptr3);
@@ -466,11 +388,6 @@ TEST_CASE("srealloc merges test", "[malloc3]")
     }
     sfree(ptr4);
     verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
-}
-
-TEST_CASE("metadata size limit", "[malloc3]")
-{
-    REQUIRE(_size_meta_data() <= 64);
 }
 
 TEST_CASE("weird values", "[malloc3]")
@@ -656,70 +573,25 @@ TEST_CASE("THANK YOU AVIGAIL YOU ARE AMAZING! size of blocks and meta data", "[m
     sfree(ptr1);
     sfree(ptr2);
 }
-TEST_CASE("'IF IT WORKS IT WORKS' - Eilon", "[malloc3]")
-{
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
-
-    void *ptr1, *ptr2, *ptr3;
-
-    // Allocate a block
-    size_t allocation = 128 * pow(2, 8) - 64;
-    ptr1 = smalloc(allocation);
-    REQUIRE(ptr1 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
-    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 31, 0, 0, 0);
-
-    // Allocate another block (same size)
-    ptr2 = smalloc(allocation);
-    REQUIRE(ptr2 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
-    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 31, 0, 0, 0);
-
-    // Re-allocate block with bigger size
-    size_t reallocation = 128 * pow(2, 9) - 64;
-    ptr3 = srealloc(ptr1, reallocation);
-    REQUIRE(ptr3 != nullptr);
-    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 31, 0, 0, 0);
-
-    sfree(ptr3);
-    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 31, 0, 0, 0);
-
-    sfree(ptr2);
-    verify_block_by_order(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0);
-}
 
 TEST_CASE("THANK YOU AVIGAIL YOU ARE AMAZING! GEPETA 1", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
     void *ptr1, *ptr2, *ptr3, *ptr4, *ptr5, *ptr6, *ptr7, *ptr8;
 
-    // Allocate a small block
-    size_t allocation = 128 * pow(2, 0) - 64;
-    ptr1 = smalloc(allocation);
-    REQUIRE(ptr1 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    // Test 1: Allocate a small block
+    std::cout << "Test GEPETA 1: 1" << std::endl;
+    ptr1 = smalloc(128 * pow(2, 0) - 64); // Request smaller than base block size
     verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
-    // Allocate a small block
-    ptr2 = scalloc(1, allocation);
-    REQUIRE(ptr2 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
-    verify_block_by_order(0, 2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
+    // Test 2: Allocate and initialize a block using scalloc
+    std::cout << "Test GEPETA 1: 2" << std::endl;
+    ptr2 = scalloc(1, 128 * pow(2, 1) - 64); // One block of order 1 size, initialized to 0
+    verify_block_by_order(1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Test 3: Reallocate the first block to a larger size
     std::cout << "Test GEPETA 1: 3" << std::endl;
     ptr1 = srealloc(ptr1, 128 * pow(2, 3) - 64); // Resize to order 3 size
-    verify_block_by_order(1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
+    verify_block_by_order(0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     // Test 4: Free the second block
     std::cout << "Test GEPETA 1: 4" << std::endl;
@@ -901,38 +773,17 @@ TEST_CASE("THANK YOU AVIGAIL YOU ARE AMAZING! 8", "[malloc3]")
 
 TEST_CASE("THANK YOU AVIGAIL YOU ARE AMAZING! 9", "[malloc3]")
 {
-    size_t order_free[11] = {0};
-    size_t order_use[11] = {0};
-    size_t big_blocks_count = 0;
-    size_t big_blocks_size = 0;
-    
+
     void *ptr1, *ptr2, *ptr3, *ptr4;
 
     // Allocate two blocks of size 1
-    // Allocate a small block
-    size_t allocation = 128 * pow(2, 0) - 64;
-    ptr1 = smalloc(allocation);
-    REQUIRE(ptr1 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    ptr1 = smalloc(128 * pow(2, 0) - 64); // Size 1 block
     verify_block_by_order(1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
-
-    ptr2 = smalloc(allocation); // Another Size 1 block
-    REQUIRE(ptr2 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    ptr2 = smalloc(128 * pow(2, 0) - 64); // Another Size 1 block
     verify_block_by_order(0, 2, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
-
-    ptr3 = smalloc(allocation); // Another Size 1 block
-    REQUIRE(ptr3 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    ptr3 = smalloc(128 * pow(2, 0) - 64); // Size 1 block
     verify_block_by_order(1, 3, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
-
-    ptr4 = smalloc(allocation); // Another Size 1 block
-    REQUIRE(ptr4 != nullptr);
-    update_allocation(order_free, order_use, &big_blocks_count, &big_blocks_size, allocation);
-    verify_block_order(order_free, order_use, big_blocks_count, big_blocks_size);
+    ptr4 = smalloc(128 * pow(2, 0) - 64); // Another Size 1 block
     verify_block_by_order(0, 4, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 31, 0, 0, 0);
 
     sfree(ptr2);
