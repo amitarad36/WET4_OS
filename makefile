@@ -1,27 +1,15 @@
-# Compiler
-CXX = g++
+CC = g++
+CFLAGS = -Wall -Wextra -Werror -std=c++11
+TARGET = test_malloc.out
+SRC = test.cpp malloc_3.cpp
 
-# Compilation Flags
-CXXFLAGS = -Wall -Wextra -Werror -std=c++11
+all: $(TARGET)
 
-# Source Files
-SRC = test.cpp malloc_2.cpp
-OBJ = $(SRC:.cpp=.o)
+$(TARGET): $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
 
-# Output Executable
-EXEC = test.out
+run: $(TARGET)
+	./$(TARGET)
 
-# Default rule
-all: $(EXEC)
-
-# Compile the executable
-$(EXEC): $(SRC)
-	$(CXX) $(CXXFLAGS) $(SRC) -o $(EXEC)
-
-# Run the compiled test
-run: $(EXEC)
-	./$(EXEC)
-
-# Clean generated files
 clean:
-	rm -f $(EXEC) $(OBJ)
+	rm -f $(TARGET)
