@@ -16,6 +16,8 @@ struct MallocMetadata {
     MallocMetadata* prev;
 };
 
+void insert_block_sorted(int order, MallocMetadata* block);
+
 MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
 bool initialized = false;
 
