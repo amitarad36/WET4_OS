@@ -2,6 +2,7 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <cstddef>
+#include <cstdint>
 
 #define MAX_ORDER 10
 #define MIN_BLOCK_SIZE 128
