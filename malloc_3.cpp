@@ -20,6 +20,7 @@ void insert_block_sorted(int order, MallocMetadata* block);
 void remove_block(int order, MallocMetadata* block);
 void merge_block(int order, MallocMetadata* block);
 int get_order(size_t size);
+void* srealloc(void* oldp, size_t new_size);
 
 MallocMetadata* free_blocks[MAX_ORDER + 1] = { nullptr };
 bool initialized = false;
