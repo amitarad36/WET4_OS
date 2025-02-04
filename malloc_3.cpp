@@ -128,6 +128,27 @@ public:
         if (order < 0 || order > MAX_ORDER) return NULL;
         return free_lists[order];
     }
+
+    void remove_from_allocated_list(MallocMetadata* block) {
+        if (!block || !allocated_list) return;
+
+        if (block == allocated_list) { // Removing the head
+            allocated_list = block->next_block;
+            if (allocated_list) {
+                allocated_list->prev_block = NULL;
+            }
+            return;
+        }
+
+        if (block->prev_block) {
+            block->prev_block->next_block = block->next_block;
+        }
+
+        if (block->next_block) {
+            block->next_block->prev_block = block->prev_block;
+        }
+    }
+
 };
 
 BuddyMemoryManager memory_manager;
@@ -145,7 +166,7 @@ void* smalloc(size_t size) {
     }
 
     memory_manager.add_to_allocated_list(block);
-    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, block);
+    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, (void*)block);
     return (char*)block + sizeof(MallocMetadata);
 }
 
