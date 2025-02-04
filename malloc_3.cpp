@@ -103,16 +103,22 @@ void* srealloc(void* old_memory, size_t new_size) {
     if (old_memory == NULL) {
         return smalloc(new_size);
     }
+
     MallocMetadata* block_metadata = (MallocMetadata*)((char*)old_memory - sizeof(MallocMetadata));
     size_t current_size = block_metadata->block_size;
+
     if (current_size >= new_size) {
         return old_memory;
     }
+
     void* new_memory = smalloc(new_size);
     if (new_memory == NULL) {
-        return NULL;
+        return NULL;  // Ensure failure does not proceed to invalid memory copy.
     }
+
+    // Copy the existing data safely
     memmove(new_memory, old_memory, current_size);
+
     sfree(old_memory);
     return new_memory;
 }
