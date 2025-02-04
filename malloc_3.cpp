@@ -144,10 +144,8 @@ void* smalloc(size_t size) {
         return NULL;
     }
 
-    // Track allocated blocks
     memory_manager.add_to_allocated_list(block);
-
-    printf("smalloc: Successfully allocated %zu bytes\n", size);
+    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, block);
     return (char*)block + sizeof(MallocMetadata);
 }
 
@@ -167,7 +165,18 @@ void sfree(void* memory) {
     block->is_available = true;
     printf("sfree: Freed block of size %zu\n", block->block_size);
 
-    // Prevent excessive merging
+    // Ensure allocated block is removed correctly
+    if (block->prev_block) {
+        block->prev_block->next_block = block->next_block;
+    }
+    else {
+        memory_manager.remove_from_allocated_list(block);
+    }
+    if (block->next_block) {
+        block->next_block->prev_block = block->prev_block;
+    }
+
+    // Do not merge blocks unless explicitly required
     if (block->next_block && block->next_block->is_available) {
         printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
@@ -208,7 +217,6 @@ size_t _num_allocated_blocks() {
     size_t count = 0;
     printf("_num_allocated_blocks: Checking all memory...\n");
 
-    // Iterate through all orders
     for (int i = 0; i <= MAX_ORDER; i++) {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
@@ -219,11 +227,11 @@ size_t _num_allocated_blocks() {
         }
     }
 
-    //  Also count used (allocated) blocks
     MallocMetadata* curr_allocated = memory_manager.get_allocated_list();
     while (curr_allocated != NULL) {
+        size_t order = memory_manager.get_order(curr_allocated->block_size); //  Ensure order is printed
         count++;
-        printf("Allocated block: size=%zu, order=?\n", curr_allocated->block_size);
+        printf("Allocated block: size=%zu, order=%zu\n", curr_allocated->block_size, order);
         curr_allocated = curr_allocated->next_block;
     }
 
