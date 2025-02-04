@@ -171,7 +171,9 @@ void* smalloc(size_t size) {
     }
 
     memory_manager.add_to_allocated_list(block);
-    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, (void*)block);
+    printf("smalloc: Successfully allocated %zu bytes at %p (Order: %zu)\n",
+        size, (void*)block, memory_manager.get_order(size));
+
     return (char*)block + sizeof(MallocMetadata);
 }
 
@@ -191,17 +193,17 @@ void sfree(void* memory) {
     block->is_available = true;
     printf("sfree: Freed block of size %zu\n", block->block_size);
 
-    // Remove from allocated list
+    //  Ensure block is removed from the allocated list
     memory_manager.remove_from_allocated_list(block);
 
-    // Prevent excessive merging
+    //  Prevent excessive merging
     if (block->next_block && block->next_block->is_available) {
         printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
     }
 
-    // Add to free list
+    //  Add back to the free list
     size_t order = memory_manager.get_order(block->block_size);
     block->next_block = memory_manager.get_free_list(order);
     memory_manager.set_free_list(order, block);
