@@ -3,174 +3,174 @@
 #define MAX_MEMORY_ALLOCATED_SIZE 100000000 // 10^8
 
 struct MallocMetadata {
-    size_t size;
-    bool is_free;
-    MallocMetadata* next;
-    MallocMetadata* prev;
+    size_t block_size;
+    bool is_available;
+    MallocMetadata* next_block;
+    MallocMetadata* prev_block;
 };
 
-class SortedBlocks {
-    MallocMetadata* list;
+class MemoryManager {
+    MallocMetadata* head;
 
 public:
-    SortedBlocks() : list(NULL) {}
+    MemoryManager() : head(NULL) {}
 
-    MallocMetadata* get_start_of_block(void* block) {
-        return (MallocMetadata*)((char*)block - sizeof(MallocMetadata));
+    MallocMetadata* get_block_start(void* memory) {
+        return (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
     }
 
-    void release_used_block(void* block_place) {
-        MallocMetadata* current_block = get_start_of_block(block_place);
-        current_block->is_free = true;
+    void mark_block_free(void* memory) {
+        MallocMetadata* target_block = get_block_start(memory);
+        target_block->is_available = true;
     }
 
-    void add_block_to_list(MallocMetadata* block) {
+    void insert_sorted(MallocMetadata* new_block) {
         MallocMetadata* prev = NULL;
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            prev = current;
-            current = current->next;
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            prev = curr;
+            curr = curr->next_block;
         }
         if (prev != NULL) {
-            prev->next = block;
-            block->prev = prev;
+            prev->next_block = new_block;
+            new_block->prev_block = prev;
         }
         else {
-            list = block;
+            head = new_block;
         }
     }
 
-    void* create_memory_for_block(size_t size) {
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            if (current->size >= size && current->is_free) {
-                current->is_free = false;
-                return current;
+    void* allocate_new_block(size_t request_size) {
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            if (curr->block_size >= request_size && curr->is_available) {
+                curr->is_available = false;
+                return curr;
             }
-            current = current->next;
+            curr = curr->next_block;
         }
-        size_t total_allocation_cost = size + sizeof(MallocMetadata);
-        void* p_break = sbrk(total_allocation_cost);
-        if (p_break == (void*)-1) {
+        size_t total_size = request_size + sizeof(MallocMetadata);
+        void* new_memory = sbrk(total_size);
+        if (new_memory == (void*)-1) {
             return NULL;
         }
-        MallocMetadata* new_block_allocated = (MallocMetadata*)p_break;
-        new_block_allocated->size = size;
-        new_block_allocated->is_free = false;
-        new_block_allocated->next = NULL;
-        new_block_allocated->prev = NULL;
-        add_block_to_list(new_block_allocated);
-        return new_block_allocated;
+        MallocMetadata* new_block = (MallocMetadata*)new_memory;
+        new_block->block_size = request_size;
+        new_block->is_available = false;
+        new_block->next_block = NULL;
+        new_block->prev_block = NULL;
+        insert_sorted(new_block);
+        return new_block;
     }
 
-    size_t get_sum_of_all_bytes() {
-        size_t sum = 0;
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            sum += current->size;
-            current = current->next;
+    size_t total_allocated_memory() {
+        size_t total = 0;
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            total += curr->block_size;
+            curr = curr->next_block;
         }
-        return sum;
+        return total;
     }
 
-    size_t get_number_of_all_blocks() {
-        size_t counter = 0;
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            counter++;
-            current = current->next;
+    size_t total_blocks() {
+        size_t count = 0;
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            count++;
+            curr = curr->next_block;
         }
-        return counter;
+        return count;
     }
 
-    size_t get_sum_of_all_free_bytes() {
-        size_t sum = 0;
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            if (current->is_free) {
-                sum += current->size;
+    size_t free_memory_total() {
+        size_t free_memory = 0;
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            if (curr->is_available) {
+                free_memory += curr->block_size;
             }
-            current = current->next;
+            curr = curr->next_block;
         }
-        return sum;
+        return free_memory;
     }
 
-    size_t get_number_of_all_free_blocks() {
-        size_t counter = 0;
-        MallocMetadata* current = list;
-        while (current != NULL) {
-            if (current->is_free) {
-                counter++;
+    size_t free_blocks_count() {
+        size_t count = 0;
+        MallocMetadata* curr = head;
+        while (curr != NULL) {
+            if (curr->is_available) {
+                count++;
             }
-            current = current->next;
+            curr = curr->next_block;
         }
-        return counter;
+        return count;
     }
 };
 
-SortedBlocks list;
+MemoryManager memory_manager;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_MEMORY_ALLOCATED_SIZE) {
         return NULL;
     }
-    void* p_break = list.create_memory_for_block(size);
-    if (p_break == NULL) {
+    void* allocated_memory = memory_manager.allocate_new_block(size);
+    if (allocated_memory == NULL) {
         return NULL;
     }
-    return (char*)p_break + sizeof(MallocMetadata);
+    return (char*)allocated_memory + sizeof(MallocMetadata);
 }
 
 void* scalloc(size_t num, size_t size) {
-    void* place = smalloc(size * num);
-    if (place == NULL) {
+    void* allocated_memory = smalloc(num * size);
+    if (allocated_memory == NULL) {
         return NULL;
     }
-    memset(place, 0, size * num);
-    return place;
+    memset(allocated_memory, 0, num * size);
+    return allocated_memory;
 }
 
-void sfree(void* p) {
-    if (p != NULL) {
-        list.release_used_block(p);
+void sfree(void* memory) {
+    if (memory != NULL) {
+        memory_manager.mark_block_free(memory);
     }
 }
 
-void* srealloc(void* oldp, size_t size) {
-    if (size == 0 || size > MAX_MEMORY_ALLOCATED_SIZE) {
+void* srealloc(void* old_memory, size_t new_size) {
+    if (new_size == 0 || new_size > MAX_MEMORY_ALLOCATED_SIZE) {
         return NULL;
     }
-    if (oldp == NULL) {
-        return smalloc(size);
+    if (old_memory == NULL) {
+        return smalloc(new_size);
     }
-    MallocMetadata* block_data = list.get_start_of_block(oldp);
-    size_t old_block_size = block_data->size;
-    if (old_block_size >= size) {
-        return oldp;
+    MallocMetadata* block_metadata = memory_manager.get_block_start(old_memory);
+    size_t current_size = block_metadata->block_size;
+    if (current_size >= new_size) {
+        return old_memory;
     }
-    void* new_block = smalloc(size);
-    if (new_block == NULL) {
+    void* new_memory = smalloc(new_size);
+    if (new_memory == NULL) {
         return NULL;
     }
-    memmove(new_block, oldp, old_block_size);
-    sfree(oldp);
-    return new_block;
+    memmove(new_memory, old_memory, current_size);
+    sfree(old_memory);
+    return new_memory;
 }
 
 size_t _num_free_blocks() {
-    return list.get_number_of_all_free_blocks();
+    return memory_manager.free_blocks_count();
 }
 
 size_t _num_free_bytes() {
-    return list.get_sum_of_all_free_bytes();
+    return memory_manager.free_memory_total();
 }
 
 size_t _num_allocated_blocks() {
-    return list.get_number_of_all_blocks();
+    return memory_manager.total_blocks();
 }
 
 size_t _num_allocated_bytes() {
-    return list.get_sum_of_all_bytes();
+    return memory_manager.total_allocated_memory();
 }
 
 size_t _size_meta_data() {
@@ -180,4 +180,3 @@ size_t _size_meta_data() {
 size_t _num_meta_data_bytes() {
     return (_size_meta_data() * _num_allocated_blocks());
 }
-
