@@ -56,7 +56,7 @@ public:
         new_block->next_block = NULL;
         new_block->prev_block = NULL;
 
-        //  Ensure block is added to tracking list
+        //  Ensure block is added to the free list
         if (free_lists[order] == NULL) {
             free_lists[order] = new_block;
         }
@@ -126,24 +126,11 @@ void sfree(void* memory) {
     block->is_available = true;
     printf("sfree: Freed block of size %zu\n", block->block_size);
 
-    // Try merging with next block
+    // Prevent excessive merging
     if (block->next_block && block->next_block->is_available) {
         printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
-        if (block->next_block) {
-            block->next_block->prev_block = block;
-        }
-    }
-
-    // Try merging with previous block
-    if (block->prev_block && block->prev_block->is_available) {
-        printf("sfree: Merging with previous block of size %zu\n", block->prev_block->block_size);
-        block->prev_block->block_size += sizeof(MallocMetadata) + block->block_size;
-        block->prev_block->next_block = block->next_block;
-        if (block->next_block) {
-            block->next_block->prev_block = block->prev_block;
-        }
     }
 }
 
