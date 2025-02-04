@@ -236,13 +236,13 @@ size_t _num_allocated_blocks() {
 
     MallocMetadata* curr_allocated = memory_manager.get_allocated_list();
     while (curr_allocated != NULL) {
-        size_t order = memory_manager.get_order(curr_allocated->block_size);
         count++;
         curr_allocated = curr_allocated->next_block;
     }
 
     return count;
 }
+
 
 size_t _num_allocated_bytes() {
     return _num_free_bytes();
