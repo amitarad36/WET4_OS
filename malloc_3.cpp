@@ -37,22 +37,29 @@ public:
     void* allocate_new_block(size_t request_size) {
         size_t order = get_order(request_size);
         if (order > MAX_ORDER) {
+            printf("allocate_new_block: Requested size too large (%zu bytes)\n", request_size);
             return NULL;
         }
+
         if (free_lists[order] != NULL) {
             MallocMetadata* block = free_lists[order];
             free_lists[order] = block->next_block;
             block->is_available = false;
+            printf("allocate_new_block: Reusing free block of size %zu\n", block->block_size);
             return block;
         }
+
         size_t block_size = 1 << (order + 7);
         void* new_memory = sbrk(block_size + sizeof(MallocMetadata));
         if (new_memory == (void*)-1) {
+            printf("allocate_new_block: sbrk failed for %zu bytes\n", block_size);
             return NULL;
         }
+
         MallocMetadata* new_block = (MallocMetadata*)new_memory;
         new_block->block_size = block_size;
         new_block->is_available = false;
+        printf("allocate_new_block: New block allocated with size %zu\n", block_size);
         return new_block;
     }
 
@@ -155,7 +162,9 @@ size_t _num_free_bytes() {
 }
 
 size_t _num_allocated_blocks() {
-    return _num_free_blocks();
+    size_t count = memory_manager.total_blocks();
+    printf("_num_allocated_blocks: %zu\n", count);
+    return count;
 }
 
 size_t _num_allocated_bytes() {
