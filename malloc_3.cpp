@@ -129,6 +129,11 @@ public:
         return free_lists[order];
     }
 
+    void set_free_list(int order, MallocMetadata* block) {
+        if (order < 0 || order > MAX_ORDER) return;
+        free_lists[order] = block;
+    }
+
     void remove_from_allocated_list(MallocMetadata* block) {
         if (!block || !allocated_list) return;
 
@@ -199,7 +204,7 @@ void sfree(void* memory) {
     // Add to free list
     size_t order = memory_manager.get_order(block->block_size);
     block->next_block = memory_manager.get_free_list(order);
-    memory_manager.get_free_list(order) = block;
+    memory_manager.set_free_list(order, block);
 }
 
 void* srealloc(void* old_memory, size_t new_size) {
