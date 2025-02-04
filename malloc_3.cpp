@@ -1,6 +1,5 @@
 #include <unistd.h>
 #include <string.h>
-#include <cstdio> 
 
 #define MAX_MEMORY_ALLOCATED_SIZE 100000000 // 10^8
 #define MIN_BLOCK_SIZE 128
@@ -32,7 +31,7 @@ public:
         if (allocated_list != NULL) {
             allocated_list->prev_block = block;
         }
-        block->prev_block = NULL; //  Fix
+        block->prev_block = NULL; 
         allocated_list = block;
     }
 
@@ -100,18 +99,16 @@ public:
         MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
         block->is_available = true;
 
-        //  Remove from allocated list
         if (block->prev_block) {
             block->prev_block->next_block = block->next_block;
         }
         else {
-            allocated_list = block->next_block; // Head of allocated list
+            allocated_list = block->next_block; 
         }
         if (block->next_block) {
             block->next_block->prev_block = block->prev_block;
         }
 
-        //  Add back to free list
         size_t order = get_order(block->block_size);
         block->next_block = free_lists[order];
         if (free_lists[order] != NULL) {
@@ -134,7 +131,7 @@ public:
     void remove_from_allocated_list(MallocMetadata* block) {
         if (!block || !allocated_list) return;
 
-        if (block == allocated_list) { // Removing the head
+        if (block == allocated_list) { 
             allocated_list = block->next_block;
             if (allocated_list) {
                 allocated_list->prev_block = NULL;
@@ -166,7 +163,6 @@ void* smalloc(size_t size) {
     }
 
     memory_manager.add_to_allocated_list(block);
-        size, (void*)block, memory_manager.get_order(size));
 
     return (char*)block + sizeof(MallocMetadata);
 }
@@ -186,16 +182,13 @@ void sfree(void* memory) {
     MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
     block->is_available = true;
 
-    //  Ensure block is removed from the allocated list
     memory_manager.remove_from_allocated_list(block);
 
-    //  Prevent excessive merging
     if (block->next_block && block->next_block->is_available) {
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
     }
 
-    //  Add back to the free list
     size_t order = memory_manager.get_order(block->block_size);
     block->next_block = memory_manager.get_free_list(order);
     memory_manager.set_free_list(order, block);
@@ -237,7 +230,6 @@ size_t _num_allocated_blocks() {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
-                curr->block_size, curr->is_available, i);
             curr = curr->next_block;
         }
     }
