@@ -56,7 +56,7 @@ public:
         new_block->next_block = NULL;
         new_block->prev_block = NULL;
 
-        //  Ensure block is added to the free list
+        //  Ensure block is added to tracking list
         if (free_lists[order] == NULL) {
             free_lists[order] = new_block;
         }
@@ -101,12 +101,17 @@ BuddyMemoryManager memory_manager;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_MEMORY_ALLOCATED_SIZE) {
+        printf("smalloc: Invalid size request (%zu bytes)\n", size);
         return NULL;
     }
+
     void* allocated_memory = memory_manager.allocate_new_block(size);
     if (allocated_memory == NULL) {
+        printf("smalloc: Failed to allocate %zu bytes\n", size);
         return NULL;
     }
+
+    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, allocated_memory);
     return (char*)allocated_memory + sizeof(MallocMetadata);
 }
 
@@ -170,7 +175,7 @@ size_t _num_allocated_blocks() {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
-            printf("Block: size=%zu, is_available=%d, order=%d\n",
+            printf("Block found in free list: size=%zu, is_available=%d, order=%d\n",
                 curr->block_size, curr->is_available, i);
             curr = curr->next_block;
         }
