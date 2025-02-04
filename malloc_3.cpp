@@ -124,14 +124,26 @@ void sfree(void* memory) {
 
     MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
     block->is_available = true;
-
     printf("sfree: Freed block of size %zu\n", block->block_size);
 
-    // Check if we can merge with the next block
+    // Try merging with next block
     if (block->next_block && block->next_block->is_available) {
         printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
+        if (block->next_block) {
+            block->next_block->prev_block = block;
+        }
+    }
+
+    // Try merging with previous block
+    if (block->prev_block && block->prev_block->is_available) {
+        printf("sfree: Merging with previous block of size %zu\n", block->prev_block->block_size);
+        block->prev_block->block_size += sizeof(MallocMetadata) + block->block_size;
+        block->prev_block->next_block = block->next_block;
+        if (block->next_block) {
+            block->next_block->prev_block = block->prev_block;
+        }
     }
 }
 
