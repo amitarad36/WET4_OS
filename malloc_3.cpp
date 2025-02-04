@@ -1,5 +1,7 @@
 #include <unistd.h>
 #include <string.h>
+#include <cstdio>  // C++ style
+
 #define MAX_MEMORY_ALLOCATED_SIZE 100000000 // 10^8
 #define MIN_BLOCK_SIZE 128
 #define MAX_ORDER 10
@@ -72,14 +74,17 @@ BuddyMemoryManager memory_manager;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_MEMORY_ALLOCATED_SIZE) {
+        printf("smalloc: Invalid size request (%zu bytes)\n", size);
         return NULL;
     }
+
     void* allocated_memory = memory_manager.allocate_new_block(size);
     if (allocated_memory == NULL) {
-        printf("smalloc failed to allocate %zu bytes\n", size);
+        printf("smalloc: Failed to allocate %zu bytes\n", size);
         return NULL;
     }
-    printf("smalloc allocated %zu bytes\n", size);
+
+    printf("smalloc: Successfully allocated %zu bytes\n", size);
     return (char*)allocated_memory + sizeof(MallocMetadata);
 }
 
