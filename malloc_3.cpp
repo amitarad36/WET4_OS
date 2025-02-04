@@ -8,6 +8,7 @@
 #define MAX_SIZE_BLOCK 128*1024
 #define BLOCK_UNIT 128
 #define ALIGNMENT_FACTOR 32*128*1024
+#define MIN_BLOCK_SIZE 128
 
 
 struct MallocMetadata {
@@ -126,6 +127,24 @@ public:
         block->is_free = true;
         insert_block_to_array(block);
     }
+
+    size_t total_blocks() {
+        size_t count = 0;
+        for (int i = 0; i <= MAX_ORDER; i++) {
+            MallocMetadata* curr = free_lists[i];
+            while (curr != NULL) {
+                count++;
+                curr = curr->next;
+            }
+        }
+        return count;
+    }
+
+    size_t get_number_of_all_blocks() {
+        return total_blocks();
+    }
+
+
 };
 
 BuddyMemoryManager memory_manager;
@@ -177,6 +196,7 @@ void* srealloc(void* old_memory, size_t new_size) {
     sfree(old_memory);
     return new_memory;
 }
+
 size_t _num_free_blocks() {
     return memory_manager.total_blocks();
 }
