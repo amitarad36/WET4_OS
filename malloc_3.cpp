@@ -16,12 +16,24 @@ struct MallocMetadata {
 
 class BuddyMemoryManager {
     MallocMetadata* free_lists[MAX_ORDER + 1];
+    MallocMetadata* allocated_list;
 
 public:
-    BuddyMemoryManager() {
+    BuddyMemoryManager() : allocated_list(NULL) {
         for (int i = 0; i <= MAX_ORDER; i++) {
             free_lists[i] = NULL;
         }
+    }
+
+    MallocMetadata* get_allocated_list() { return allocated_list; }
+
+    void add_to_allocated_list(MallocMetadata* block) {
+        block->next_block = allocated_list;
+        if (allocated_list != NULL) {
+            allocated_list->prev_block = block;
+        }
+        block->prev_block = NULL; //  Fix
+        allocated_list = block;
     }
 
     size_t total_blocks() {
@@ -32,6 +44,11 @@ public:
                 count++;
                 curr = curr->next_block;
             }
+        }
+        MallocMetadata* curr_allocated = allocated_list;
+        while (curr_allocated != NULL) {
+            count++;
+            curr_allocated = curr_allocated->next_block;
         }
         return count;
     }
@@ -56,7 +73,6 @@ public:
         new_block->next_block = NULL;
         new_block->prev_block = NULL;
 
-        //  Ensure block is added to tracking list
         if (free_lists[order] == NULL) {
             free_lists[order] = new_block;
         }
@@ -86,9 +102,26 @@ public:
     void mark_block_free(void* memory) {
         MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
         block->is_available = true;
+
+        //  Remove from allocated list
+        if (block->prev_block) {
+            block->prev_block->next_block = block->next_block;
+        }
+        else {
+            allocated_list = block->next_block; // Head of allocated list
+        }
+        if (block->next_block) {
+            block->next_block->prev_block = block->prev_block;
+        }
+
+        //  Add back to free list
         size_t order = get_order(block->block_size);
         block->next_block = free_lists[order];
+        if (free_lists[order] != NULL) {
+            free_lists[order]->prev_block = block;
+        }
         free_lists[order] = block;
+        block->prev_block = NULL;
     }
 
     MallocMetadata* get_free_list(int order) {
@@ -105,14 +138,17 @@ void* smalloc(size_t size) {
         return NULL;
     }
 
-    void* allocated_memory = memory_manager.allocate_new_block(size);
-    if (allocated_memory == NULL) {
+    MallocMetadata* block = (MallocMetadata*)memory_manager.allocate_new_block(size);
+    if (block == NULL) {
         printf("smalloc: Failed to allocate %zu bytes\n", size);
         return NULL;
     }
 
-    printf("smalloc: Successfully allocated %zu bytes at %p\n", size, allocated_memory);
-    return (char*)allocated_memory + sizeof(MallocMetadata);
+    // Track allocated blocks
+    memory_manager.add_to_allocated_list(block);
+
+    printf("smalloc: Successfully allocated %zu bytes\n", size);
+    return (char*)block + sizeof(MallocMetadata);
 }
 
 void* scalloc(size_t num, size_t size) {
@@ -170,16 +206,27 @@ size_t _num_free_bytes() {
 
 size_t _num_allocated_blocks() {
     size_t count = 0;
-    printf("_num_allocated_blocks: Checking free lists...\n");
+    printf("_num_allocated_blocks: Checking all memory...\n");
+
+    // Iterate through all orders
     for (int i = 0; i <= MAX_ORDER; i++) {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
-            printf("Block found in free list: size=%zu, is_available=%d, order=%d\n",
+            printf("Block found: size=%zu, is_available=%d, order=%d\n",
                 curr->block_size, curr->is_available, i);
             curr = curr->next_block;
         }
     }
+
+    //  Also count used (allocated) blocks
+    MallocMetadata* curr_allocated = memory_manager.get_allocated_list();
+    while (curr_allocated != NULL) {
+        count++;
+        printf("Allocated block: size=%zu, order=?\n", curr_allocated->block_size);
+        curr_allocated = curr_allocated->next_block;
+    }
+
     printf("_num_allocated_blocks: Total blocks = %zu\n", count);
     return count;
 }
