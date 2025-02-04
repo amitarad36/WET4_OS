@@ -186,23 +186,20 @@ void sfree(void* memory) {
     block->is_available = true;
     printf("sfree: Freed block of size %zu\n", block->block_size);
 
-    // Ensure allocated block is removed correctly
-    if (block->prev_block) {
-        block->prev_block->next_block = block->next_block;
-    }
-    else {
-        memory_manager.remove_from_allocated_list(block);
-    }
-    if (block->next_block) {
-        block->next_block->prev_block = block->prev_block;
-    }
+    // Remove from allocated list
+    memory_manager.remove_from_allocated_list(block);
 
-    // Do not merge blocks unless explicitly required
+    // Prevent excessive merging
     if (block->next_block && block->next_block->is_available) {
         printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
     }
+
+    // Add to free list
+    size_t order = memory_manager.get_order(block->block_size);
+    block->next_block = memory_manager.get_free_list(order);
+    memory_manager.get_free_list(order) = block;
 }
 
 void* srealloc(void* old_memory, size_t new_size) {
@@ -242,7 +239,7 @@ size_t _num_allocated_blocks() {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
-            printf("Block found: size=%zu, is_available=%d, order=%d\n",
+            printf("Free Block: size=%zu, is_available=%d, order=%d\n",
                 curr->block_size, curr->is_available, i);
             curr = curr->next_block;
         }
@@ -250,9 +247,9 @@ size_t _num_allocated_blocks() {
 
     MallocMetadata* curr_allocated = memory_manager.get_allocated_list();
     while (curr_allocated != NULL) {
-        size_t order = memory_manager.get_order(curr_allocated->block_size); //  Ensure order is printed
+        size_t order = memory_manager.get_order(curr_allocated->block_size);
         count++;
-        printf("Allocated block: size=%zu, order=%zu\n", curr_allocated->block_size, order);
+        printf("Allocated Block: size=%zu, order=%zu\n", curr_allocated->block_size, order);
         curr_allocated = curr_allocated->next_block;
     }
 
