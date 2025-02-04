@@ -71,7 +71,23 @@ public:
         MallocMetadata* new_block = (MallocMetadata*)new_memory;
         new_block->block_size = block_size;
         new_block->is_available = false;
-        printf("allocate_new_block: New block allocated with size %zu\n", block_size);
+        new_block->next_block = NULL;
+        new_block->prev_block = NULL;
+
+        //  ADD NEW BLOCK TO TRACKED LIST
+        if (free_lists[order] == NULL) {
+            free_lists[order] = new_block;
+        }
+        else {
+            MallocMetadata* current = free_lists[order];
+            while (current->next_block != NULL) {
+                current = current->next_block;
+            }
+            current->next_block = new_block;
+            new_block->prev_block = current;
+        }
+
+        printf("allocate_new_block: New block added to tracking list (size %zu)\n", block_size);
         return new_block;
     }
 
@@ -174,8 +190,15 @@ size_t _num_free_bytes() {
 }
 
 size_t _num_allocated_blocks() {
-    size_t count = memory_manager.total_blocks();
-    printf("_num_allocated_blocks: %zu\n", count);
+    size_t count = 0;
+    for (int i = 0; i <= MAX_ORDER; i++) {
+        MallocMetadata* curr = memory_manager.get_free_list(i);
+        while (curr != NULL) {
+            count++;
+            curr = curr->next_block;
+        }
+    }
+    printf("_num_allocated_blocks: Total blocks = %zu\n", count);
     return count;
 }
 
