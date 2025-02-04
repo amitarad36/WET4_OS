@@ -76,8 +76,10 @@ void* smalloc(size_t size) {
     }
     void* allocated_memory = memory_manager.allocate_new_block(size);
     if (allocated_memory == NULL) {
+        printf("smalloc failed to allocate %zu bytes\n", size);
         return NULL;
     }
+    printf("smalloc allocated %zu bytes\n", size);
     return (char*)allocated_memory + sizeof(MallocMetadata);
 }
 
