@@ -61,6 +61,11 @@ public:
         block->next_block = free_lists[order];
         free_lists[order] = block;
     }
+
+    MallocMetadata* get_free_list(int order) {
+        if (order < 0 || order > MAX_ORDER) return NULL;
+        return free_lists[order];
+    }
 };
 
 BuddyMemoryManager memory_manager;
@@ -115,7 +120,7 @@ void* srealloc(void* old_memory, size_t new_size) {
 size_t _num_free_blocks() {
     size_t count = 0;
     for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = memory_manager.free_lists[i];
+        MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
             curr = curr->next_block;
@@ -127,7 +132,7 @@ size_t _num_free_blocks() {
 size_t _num_free_bytes() {
     size_t free_memory = 0;
     for (int i = 0; i <= MAX_ORDER; i++) {
-        MallocMetadata* curr = memory_manager.free_lists[i];
+        MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             free_memory += curr->block_size;
             curr = curr->next_block;
