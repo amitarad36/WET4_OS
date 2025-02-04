@@ -56,14 +56,12 @@ public:
     void* allocate_new_block(size_t request_size) {
         size_t order = get_order(request_size);
         if (order > MAX_ORDER) {
-            printf("allocate_new_block: Requested size too large (%zu bytes)\n", request_size);
             return NULL;
         }
 
         size_t block_size = 1 << (order + 7);
         void* new_memory = sbrk(block_size + sizeof(MallocMetadata));
         if (new_memory == (void*)-1) {
-            printf("allocate_new_block: sbrk failed for %zu bytes\n", block_size);
             return NULL;
         }
 
@@ -85,7 +83,6 @@ public:
             new_block->prev_block = current;
         }
 
-        printf("allocate_new_block: New block added (size %zu, order %zu)\n", block_size, order);
         return new_block;
     }
 
@@ -160,18 +157,15 @@ BuddyMemoryManager memory_manager;
 
 void* smalloc(size_t size) {
     if (size == 0 || size > MAX_MEMORY_ALLOCATED_SIZE) {
-        printf("smalloc: Invalid size request (%zu bytes)\n", size);
         return NULL;
     }
 
     MallocMetadata* block = (MallocMetadata*)memory_manager.allocate_new_block(size);
     if (block == NULL) {
-        printf("smalloc: Failed to allocate %zu bytes\n", size);
         return NULL;
     }
 
     memory_manager.add_to_allocated_list(block);
-    printf("smalloc: Successfully allocated %zu bytes at %p (Order: %zu)\n",
         size, (void*)block, memory_manager.get_order(size));
 
     return (char*)block + sizeof(MallocMetadata);
@@ -191,14 +185,12 @@ void sfree(void* memory) {
 
     MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
     block->is_available = true;
-    printf("sfree: Freed block of size %zu\n", block->block_size);
 
     //  Ensure block is removed from the allocated list
     memory_manager.remove_from_allocated_list(block);
 
     //  Prevent excessive merging
     if (block->next_block && block->next_block->is_available) {
-        printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
         block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
         block->next_block = block->next_block->next_block;
     }
@@ -240,13 +232,11 @@ size_t _num_free_bytes() {
 
 size_t _num_allocated_blocks() {
     size_t count = 0;
-    printf("_num_allocated_blocks: Checking all memory...\n");
 
     for (int i = 0; i <= MAX_ORDER; i++) {
         MallocMetadata* curr = memory_manager.get_free_list(i);
         while (curr != NULL) {
             count++;
-            printf("Free Block: size=%zu, is_available=%d, order=%d\n",
                 curr->block_size, curr->is_available, i);
             curr = curr->next_block;
         }
@@ -256,11 +246,9 @@ size_t _num_allocated_blocks() {
     while (curr_allocated != NULL) {
         size_t order = memory_manager.get_order(curr_allocated->block_size);
         count++;
-        printf("Allocated Block: size=%zu, order=%zu\n", curr_allocated->block_size, order);
         curr_allocated = curr_allocated->next_block;
     }
 
-    printf("_num_allocated_blocks: Total blocks = %zu\n", count);
     return count;
 }
 
