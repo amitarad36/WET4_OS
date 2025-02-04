@@ -39,16 +39,37 @@ public:
     void* allocate_new_block(size_t request_size) {
         size_t order = get_order(request_size);
         if (order > MAX_ORDER) {
+            printf("allocate_new_block: Requested size too large (%zu bytes)\n", request_size);
             return NULL;
         }
+
         size_t block_size = 1 << (order + 7);
         void* new_memory = sbrk(block_size + sizeof(MallocMetadata));
         if (new_memory == (void*)-1) {
+            printf("allocate_new_block: sbrk failed for %zu bytes\n", block_size);
             return NULL;
         }
+
         MallocMetadata* new_block = (MallocMetadata*)new_memory;
         new_block->block_size = block_size;
         new_block->is_available = false;
+        new_block->next_block = NULL;
+        new_block->prev_block = NULL;
+
+        //  Ensure block is added to tracking list
+        if (free_lists[order] == NULL) {
+            free_lists[order] = new_block;
+        }
+        else {
+            MallocMetadata* current = free_lists[order];
+            while (current->next_block != NULL) {
+                current = current->next_block;
+            }
+            current->next_block = new_block;
+            new_block->prev_block = current;
+        }
+
+        printf("allocate_new_block: New block added (size %zu, order %zu)\n", block_size, order);
         return new_block;
     }
 
@@ -100,7 +121,18 @@ void* scalloc(size_t num, size_t size) {
 
 void sfree(void* memory) {
     if (memory == NULL) return;
-    memory_manager.mark_block_free(memory);
+
+    MallocMetadata* block = (MallocMetadata*)((char*)memory - sizeof(MallocMetadata));
+    block->is_available = true;
+
+    printf("sfree: Freed block of size %zu\n", block->block_size);
+
+    // Check if we can merge with the next block
+    if (block->next_block && block->next_block->is_available) {
+        printf("sfree: Merging with next block of size %zu\n", block->next_block->block_size);
+        block->block_size += sizeof(MallocMetadata) + block->next_block->block_size;
+        block->next_block = block->next_block->next_block;
+    }
 }
 
 void* srealloc(void* old_memory, size_t new_size) {
@@ -133,7 +165,19 @@ size_t _num_free_bytes() {
 }
 
 size_t _num_allocated_blocks() {
-    return memory_manager.total_blocks();
+    size_t count = 0;
+    printf("_num_allocated_blocks: Checking free lists...\n");
+    for (int i = 0; i <= MAX_ORDER; i++) {
+        MallocMetadata* curr = memory_manager.get_free_list(i);
+        while (curr != NULL) {
+            count++;
+            printf("Block: size=%zu, is_available=%d, order=%d\n",
+                curr->block_size, curr->is_available, i);
+            curr = curr->next_block;
+        }
+    }
+    printf("_num_allocated_blocks: Total blocks = %zu\n", count);
+    return count;
 }
 
 size_t _num_allocated_bytes() {
