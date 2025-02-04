@@ -24,6 +24,18 @@ public:
         }
     }
 
+    size_t total_blocks() {
+        size_t count = 0;
+        for (int i = 0; i <= MAX_ORDER; i++) {
+            MallocMetadata* curr = free_lists[i];
+            while (curr != NULL) {
+                count++;
+                curr = curr->next_block;
+            }
+        }
+        return count;
+    }
+
     size_t get_order(size_t size) {
         size_t order = 0;
         size_t block_size = MIN_BLOCK_SIZE;
